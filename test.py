@@ -1,13 +1,11 @@
 import tkinter as tk
-from PIL import Image, ImageTk
 import random
 import time
 import copy
-import os
 
-SUITS = ['S', 'H', 'D', 'C']
+SUITS = ['♠', '♥', '♦', '♣']
 RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-COLORS = {'S': 'black', 'C': 'black', 'H': 'red', 'D': 'red'}
+COLORS = {'♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red'}
 
 class Card:
     def __init__(self, suit, rank, face_up=False):
@@ -15,17 +13,15 @@ class Card:
         self.rank = rank
         self.face_up = face_up
 
-    def image_name(self):
-        return f"{self.rank}{self.suit}.png" if self.face_up else "back.png"
+    def __str__(self):
+        return f'{self.rank}{self.suit}' if self.face_up else '??'
 
 class Solitaire:
     def __init__(self, root):
         self.root = root
-        self.root.title("Solitaire Deluxe")
+        self.root.title("Solitaire Full Canvas Deluxe")
         self.start_time = time.time()
         self.history = []
-
-        self.load_images()
 
         self.deck = [Card(s, r) for s in SUITS for r in RANKS]
         self.columns = [[] for _ in range(7)]
@@ -37,7 +33,6 @@ class Solitaire:
         self.drag_col = -1
         self.score = 0
 
-        # Interface
         self.canvas = tk.Canvas(self.root, width=1000, height=700, bg="darkgreen")
         self.canvas.pack()
         self.info_frame = tk.Frame(self.root)
@@ -53,21 +48,15 @@ class Solitaire:
 
         self.new_game()
         self.update_timer()
+
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_drop)
-
-    def load_images(self):
-        self.images = {}
-        for suit in SUITS:
-            for rank in RANKS:
-                path = f"images/{rank}{suit}.png"
-                self.images[f"{rank}{suit}"] = ImageTk.PhotoImage(Image.open(path).resize((71, 96)))
-        self.images['back'] = ImageTk.PhotoImage(Image.open("images/back.png").resize((71, 96)))
-        self.images['empty'] = ImageTk.PhotoImage(Image.open("images/empty.png").resize((71, 96)))
+        self.canvas.bind("<Double-Button-1>", self.on_double_click)
 
     def save_state(self):
-        state = (copy.deepcopy(self.columns), copy.deepcopy(self.stock), copy.deepcopy(self.waste), copy.deepcopy(self.foundations), self.score)
+        state = (copy.deepcopy(self.columns), copy.deepcopy(self.stock),
+                 copy.deepcopy(self.waste), copy.deepcopy(self.foundations), self.score)
         self.history.append(state)
         if len(self.history) > 20:
             self.history.pop(0)
@@ -108,33 +97,42 @@ class Solitaire:
             x = 50 + i * 120
             y = 150
             for card in col:
-                self.canvas.create_image(x, y, image=self.images[card.image_name().replace('.png','')], anchor="nw")
-                y += 30
+                self.draw_card(card, x, y)
+                y += 40  # Meilleur espacement pour bien voir la pile
 
         if self.stock:
-            self.canvas.create_image(50, 50, image=self.images['back'], anchor="nw")
+            self.draw_card(Card('', '', False), 50, 50, back=True)
         else:
-            self.canvas.create_image(50, 50, image=self.images['empty'], anchor="nw")
+            self.canvas.create_rectangle(50, 50, 100, 100, outline="white")
 
         if self.waste:
-            self.canvas.create_image(120, 50, image=self.images[self.waste[-1].image_name().replace('.png','')], anchor="nw")
+            self.draw_card(self.waste[-1], 120, 50)
 
         for i, suit in enumerate(SUITS):
             x = 400 + i * 120
             y = 50
             if self.foundations[suit]:
-                self.canvas.create_image(x, y, image=self.images[self.foundations[suit][-1].image_name().replace('.png','')], anchor="nw")
+                self.draw_card(self.foundations[suit][-1], x, y)
             else:
-                self.canvas.create_image(x, y, image=self.images['empty'], anchor="nw")
+                self.canvas.create_rectangle(x, y, x + 50, y + 70, outline="white")
 
         if self.drag_cards:
             x, y = self.canvas.winfo_pointerx() - self.canvas.winfo_rootx() - self.drag_offset[0], \
                    self.canvas.winfo_pointery() - self.canvas.winfo_rooty() - self.drag_offset[1]
             for i, card in enumerate(self.drag_cards):
-                self.canvas.create_image(x, y + i * 30, image=self.images[card.image_name().replace('.png','')], anchor="nw")
+                self.draw_card(card, x, y + i * 40)
 
         self.score_label.config(text=f"Score : {self.score}")
         self.check_victory()
+
+    def draw_card(self, card, x, y, back=False):
+        if back or not card.face_up:
+            self.canvas.create_rectangle(x, y, x + 50, y + 70, fill="blue")
+            self.canvas.create_text(x + 25, y + 35, text="◆", fill="white", font=('Arial', 16, 'bold'))
+        else:
+            self.canvas.create_rectangle(x, y, x + 50, y + 70, fill="white")
+            color = COLORS[card.suit]
+            self.canvas.create_text(x + 25, y + 35, text=f"{card.rank}{card.suit}", fill=color, font=('Arial', 14, 'bold'))
 
     def on_click(self, event):
         if 50 < event.x < 100 and 50 < event.y < 100:
@@ -165,8 +163,8 @@ class Solitaire:
             y = 150
             for j in range(len(col)):
                 card = col[j]
-                card_x, card_y = x, y + j * 30
-                if card.face_up and card_x < event.x < card_x + 71 and card_y < event.y < card_y + 96:
+                card_x, card_y = x, y + j * 40
+                if card.face_up and card_x < event.x < card_x + 50 and card_y < event.y < card_y + 70:
                     self.save_state()
                     self.drag_cards = col[j:]
                     self.columns[i] = col[:j]
@@ -181,7 +179,6 @@ class Solitaire:
     def on_drop(self, event):
         if not self.drag_cards:
             return
-
         col_index = (event.x - 50) // 120
         if 0 <= col_index < 7:
             dest = self.columns[col_index]
@@ -197,14 +194,14 @@ class Solitaire:
 
         for i, suit in enumerate(SUITS):
             x = 400 + i * 120
-            if x < event.x < x + 71 and 50 < event.y < 146:
+            if x < event.x < x + 50 and 50 < event.y < 120:
                 top = self.foundations[suit][-1] if self.foundations[suit] else None
                 card = self.drag_cards[0]
-                if ((not top and card.rank == 'A') or (top and card.suit == suit and RANKS.index(card.rank) == RANKS.index(top.rank) + 1)):
-                    self.foundations[suit].append(card)
-                    if self.drag_col == -2:
+                if len(self.drag_cards) == 1 and card.suit == suit:
+                    if (not top and card.rank == 'A') or (top and RANKS.index(card.rank) == RANKS.index(top.rank) + 1):
+                        self.foundations[suit].append(card)
                         self.score += 10
-                    self.drag_cards = []
+                        self.drag_cards = []
 
         if self.drag_cards:
             if self.drag_col == -2:
@@ -218,6 +215,35 @@ class Solitaire:
                 col[-1].face_up = True
 
         self.draw()
+
+    def on_double_click(self, event):
+        for i, col in enumerate(self.columns):
+            x = 50 + i * 120
+            y = 150
+            for j, card in enumerate(col):
+                cx, cy = x, y + j * 40
+                if card.face_up and cx < event.x < cx + 50 and cy < event.y < cy + 70:
+                    self.try_send_to_foundation(card, i, j)
+                    return
+
+        if self.waste:
+            card = self.waste[-1]
+            if 120 < event.x < 170 and 50 < event.y < 100:
+                self.try_send_to_foundation(card, -1, -1)
+
+    def try_send_to_foundation(self, card, col_index, card_index):
+        suit = card.suit
+        top = self.foundations[suit][-1] if self.foundations[suit] else None
+        if (not top and card.rank == 'A') or (top and RANKS.index(card.rank) == RANKS.index(top.rank) + 1):
+            self.foundations[suit].append(card)
+            self.score += 10
+            if col_index == -1:
+                self.waste.pop()
+            else:
+                self.columns[col_index].pop()
+                if self.columns[col_index] and not self.columns[col_index][-1].face_up:
+                    self.columns[col_index][-1].face_up = True
+            self.draw()
 
     def check_victory(self):
         if all(len(self.foundations[suit]) == 13 for suit in SUITS):
