@@ -68,6 +68,8 @@ class Solitaire:
             self.draw()
 
     def new_game(self):
+        self.deck = [Card(s, r) for s in SUITS for r in RANKS]  # 🔥 RECRÉER LE DECK ICI
+        random.shuffle(self.deck)
         random.shuffle(self.deck)
         self.columns = [[] for _ in range(7)]
         self.stock = []
