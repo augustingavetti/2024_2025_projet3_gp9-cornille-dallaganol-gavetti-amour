@@ -20,6 +20,10 @@ class Solitaire:
     def __init__(self, root):
         self.root = root
         self.root.title("Solitaire avec IA")
+        self.root.bind('<Configure>', self.on_resize)
+        self.canvas_width = 1000
+        self.canvas_height = 700
+
         self.start_time = time.time()
         self.history = []
 
@@ -33,8 +37,8 @@ class Solitaire:
         self.drag_col = -1
         self.score = 0
 
-        self.canvas = tk.Canvas(self.root, width=1000, height=700, bg="darkgreen")
-        self.canvas.pack()
+        self.canvas = tk.Canvas(self.root, width=self.canvas_width, height=self.canvas_height, bg="darkgreen")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
         self.info_frame = tk.Frame(self.root)
         self.info_frame.pack()
 
@@ -61,6 +65,11 @@ class Solitaire:
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_drop)
         self.canvas.bind("<Double-Button-1>", self.on_double_click)
+
+    def on_resize(self, event):
+        self.canvas_width = event.width
+        self.canvas_height = event.height
+        self.draw()
 
     def save_state(self):
         state = (copy.deepcopy(self.columns), copy.deepcopy(self.stock),
