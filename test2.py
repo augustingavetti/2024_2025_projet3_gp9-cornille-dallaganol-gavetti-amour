@@ -71,6 +71,53 @@ class Solitaire:
         self.canvas_height = event.height
         self.draw()
 
+        def on_resize(self, event):
+            self.canvas_width = event.width
+            self.canvas_height = event.height
+            self.draw()
+
+        def draw(self):
+            self.canvas.delete("all")
+
+        # Centrage horizontal des colonnes
+            total_width = 7 * 120  # 7 colonnes, 120 px d'espacement
+            start_x = (self.canvas_width - total_width) // 2
+
+            for i, col in enumerate(self.columns):
+                x = start_x + i * 120
+                y = 150
+                for card in col:
+                    self.draw_card(card, x, y)
+                    y += 40
+
+        if self.stock:
+            self.draw_card(Card('', '', False), start_x, 50, back=True)
+        else:
+            self.canvas.create_rectangle(start_x, 50, start_x + 50, 120, outline="white")
+
+        if self.waste:
+            self.draw_card(self.waste[-1], start_x + 70, 50)
+
+        for i, suit in enumerate(SUITS):
+            x = start_x + 400 + i * 120
+            y = 50
+            if self.foundations[suit]:
+                self.draw_card(self.foundations[suit][-1], x, y)
+            else:
+                self.canvas.create_rectangle(x, y, x + 50, y + 70, outline="white")
+
+        self.score_label.config(text=f"Score : {self.score}")
+
+    def draw_card(self, card, x, y, back=False):
+        if back or not card.face_up:
+            self.canvas.create_rectangle(x, y, x + 50, y + 70, fill="blue")
+            self.canvas.create_text(x + 25, y + 35, text="◆", fill="white", font=('Arial', 16, 'bold'))
+        else:
+            self.canvas.create_rectangle(x, y, x + 50, y + 70, fill="white")
+            color = COLORS[card.suit]
+            self.canvas.create_text(x + 25, y + 35, text=f"{card.rank}{card.suit}", fill=color, font=('Arial', 14, 'bold'))
+
+
     def save_state(self):
         state = (copy.deepcopy(self.columns), copy.deepcopy(self.stock),
                  copy.deepcopy(self.waste), copy.deepcopy(self.foundations), self.score)
