@@ -17,7 +17,8 @@ L'objectif est de développer une IA qui trouve et joue une séquence de coups g
 * Réseau de neuronnes avec un système de récompense grâce à pytorch.
 
 ## OBJECTIFS DE PERFORMANCE 🚀
-* Résoudre le jeu du solitaire le plus rapidement possible
+* Résoudre le jeu du solitaire le plus rapidement possible.
+* Gagner au moins 95% des parties jouées.
 
 ## AUTEURS DU PROJET 🧑‍🤝‍🧑
 Les personnes ayant contribué au projet sont :
