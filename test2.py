@@ -46,20 +46,14 @@ class Solitaire:
         self.score_label.grid(row=0, column=0, padx=10)
         self.time_label = tk.Label(self.info_frame, text="Temps : 0s", font=('Arial', 14))
         self.time_label.grid(row=0, column=1, padx=10)
-        self.suggestion_label = tk.Label(self.info_frame, text="Suggestion :", font=('Arial', 14), fg="green")
-        self.suggestion_label.grid(row=0, column=2, padx=10)
         self.undo_button = tk.Button(self.info_frame, text="Annuler", command=self.undo)
         self.undo_button.grid(row=0, column=3, padx=10)
         self.new_game_button = tk.Button(self.info_frame, text="Nouvelle Partie", command=self.new_game)
         self.new_game_button.grid(row=0, column=4, padx=10)
-        self.ia_button = tk.Button(self.info_frame, text="IA auto", command=self.start_ia)
-        self.ia_button.grid(row=0, column=5, padx=10)
 
-        self.ia_running = False
 
         self.new_game()
         self.update_timer()
-        self.update_suggestion()
 
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<B1-Motion>", self.on_drag)
@@ -71,24 +65,20 @@ class Solitaire:
         self.canvas_height = event.height
         self.draw()
 
-        def on_resize(self, event):
-            self.canvas_width = event.width
-            self.canvas_height = event.height
-            self.draw()
 
-        def draw(self):
-            self.canvas.delete("all")
+    def draw(self):
+        self.canvas.delete("all")
 
         # Centrage horizontal des colonnes
-            total_width = 7 * 120  # 7 colonnes, 120 px d'espacement
-            start_x = (self.canvas_width - total_width) // 2
+        total_width = 7 * 120  # 7 colonnes, 120 px d'espacement
+        start_x = (self.canvas_width - total_width) // 2
 
-            for i, col in enumerate(self.columns):
-                x = start_x + i * 120
-                y = 150
-                for card in col:
-                    self.draw_card(card, x, y)
-                    y += 40
+        for i, col in enumerate(self.columns):
+            x = start_x + i * 120
+            y = 150
+            for card in col:
+                self.draw_card(card, x, y)
+                y += 40
 
         if self.stock:
             self.draw_card(Card('', '', False), start_x, 50, back=True)
@@ -102,7 +92,7 @@ class Solitaire:
             x = start_x + 400 + i * 120
             y = 50
             if self.foundations[suit]:
-                self.draw_card(self.foundations[suit][-1], x, y)
+                    self.draw_card(self.foundations[suit][-1], x, y)
             else:
                 self.canvas.create_rectangle(x, y, x + 50, y + 70, outline="white")
 
@@ -158,90 +148,6 @@ class Solitaire:
         self.time_label.config(text=f"Temps : {elapsed}s")
         self.root.after(1000, self.update_timer)
 
-    def update_suggestion(self):
-        move = self.find_best_move()
-        if move:
-            self.suggestion_label.config(text=f"Suggestion : {move}")
-        else:
-            self.suggestion_label.config(text="Suggestion : aucun coup utile")
-        self.root.after(1000, self.update_suggestion)
-
-    def find_best_move(self):
-        for i, col in enumerate(self.columns):
-            if col and col[-1].face_up:
-                card = col[-1]
-                foundation = self.foundations[card.suit]
-                if (not foundation and card.rank == 'A') or (foundation and RANKS.index(card.rank) == RANKS.index(foundation[-1].rank) + 1):
-                    return f"envoyer {card} à la fondation"
-
-        for i, col in enumerate(self.columns):
-            for j in range(len(col)):
-                card = col[j]
-                if card.face_up:
-                    for k, dest in enumerate(self.columns):
-                        if i != k and dest:
-                            top = dest[-1]
-                            if top.face_up and COLORS[top.suit] != COLORS[card.suit] and RANKS.index(card.rank) + 1 == RANKS.index(top.rank):
-                                return f"déplacer {card} sur {top}"
-
-        if self.waste:
-            card = self.waste[-1]
-            for k, dest in enumerate(self.columns):
-                if dest:
-                    top = dest[-1]
-                    if top.face_up and COLORS[top.suit] != COLORS[card.suit] and RANKS.index(card.rank) + 1 == RANKS.index(top.rank):
-                        return f"jouer {card} sur {top}"
-        return None
-
-    def start_ia(self):
-        if not self.ia_running:
-            self.ia_running = True
-            self.ia_auto_play()
-
-    def ia_auto_play(self):
-        if not self.ia_running:
-            return
-        move = self.find_best_move()
-        if not move:
-            self.ia_running = False
-            return
-        self.perform_best_move()
-        self.root.after(500, self.ia_auto_play)
-
-    def perform_best_move(self):
-        for i, col in enumerate(self.columns):
-            if col and col[-1].face_up:
-                card = col[-1]
-                foundation = self.foundations[card.suit]
-                if (not foundation and card.rank == 'A') or (foundation and RANKS.index(card.rank) == RANKS.index(foundation[-1].rank) + 1):
-                    self.try_send_to_foundation(card, i, len(col)-1)
-                    return
-
-        for i, col in enumerate(self.columns):
-            for j in range(len(col)):
-                card = col[j]
-                if card.face_up:
-                    for k, dest in enumerate(self.columns):
-                        if i != k and dest:
-                            top = dest[-1]
-                            if top.face_up and COLORS[top.suit] != COLORS[card.suit] and RANKS.index(card.rank) + 1 == RANKS.index(top.rank):
-                                self.save_state()
-                                self.columns[k].extend(col[j:])
-                                self.columns[i] = col[:j]
-                                self.draw()
-                                return
-
-        if self.waste:
-            card = self.waste[-1]
-            for k, dest in enumerate(self.columns):
-                if dest:
-                    top = dest[-1]
-                    if top.face_up and COLORS[top.suit] != COLORS[card.suit] and RANKS.index(card.rank) + 1 == RANKS.index(top.rank):
-                        self.save_state()
-                        self.columns[k].append(card)
-                        self.waste.pop()
-                        self.draw()
-                        return
 
     def try_send_to_foundation(self, card, col_index, card_index):
         suit = card.suit
