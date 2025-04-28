@@ -1,3 +1,5 @@
+from ai import SolitaireAI
+import torch  
 import tkinter as tk
 import random
 import time
@@ -43,6 +45,8 @@ class Solitaire:
         self.info_frame = tk.Frame(self.root)
         self.info_frame.pack()
 
+        self.ai = SolitaireAI()
+
         self.score_label = tk.Label(self.info_frame, text="Score : 0", font=('Arial', 14))
         self.score_label.grid(row=0, column=0, padx=10)
         self.time_label = tk.Label(self.info_frame, text="Temps : 0s", font=('Arial', 14))
@@ -51,6 +55,8 @@ class Solitaire:
         self.undo_button.grid(row=0, column=2, padx=10)
         self.new_game_button = tk.Button(self.info_frame, text="Nouvelle Partie", command=self.new_game)
         self.new_game_button.grid(row=0, column=3, padx=10)
+        self.ia_button = tk.Button(self.info_frame, text="Jouer coup IA", command=self.play_ai_move)
+        self.ia_button.grid(row=0, column=5, padx=10)
 
         self.new_game()
         self.update_timer()
@@ -267,6 +273,74 @@ class Solitaire:
             card = self.waste[-1]
             if start_x + 70 < event.x < start_x + 120 and 50 < event.y < 120:
                 self.try_send_to_foundation(card, -1, -1)
+    
+    def get_state(self):
+        state = [
+            len(col) for col in self.columns
+        ] + [
+            1 if self.stock else 0,
+            1 if self.waste else 0,
+        ] + [
+            len(self.foundations[suit]) for suit in SUITS
+        ]
+        return torch.FloatTensor(state)
+    
+    def apply_action(self, action):
+        self.save_state()
+        if action == 0:
+        # Piocher une carte
+            if self.stock:
+                card = self.stock.pop()
+                card.face_up = True
+                self.waste.append(card)
+            else:
+                self.stock = self.waste[::-1]
+                for card in self.stock:
+                    card.face_up = False
+                self.waste.clear()
+
+        elif action == 1:
+        # Envoyer carte waste vers fondation
+            if self.waste:
+                card = self.waste[-1]
+                suit = card.suit
+                foundation = self.foundations[suit]
+                if (not foundation and card.rank == 'A') or (foundation and RANKS.index(card.rank) == RANKS.index(foundation[-1].rank) + 1):
+                    self.foundations[suit].append(self.waste.pop())
+                    self.score += 10
+
+        elif action == 2:
+        # Déplacer carte visible colonne ➔ autre colonne
+            for i, col in enumerate(self.columns):
+                if col and col[-1].face_up:
+                    card = col[-1]
+                    for j, dest in enumerate(self.columns):
+                        if i != j and (not dest and card.rank == 'K' or (dest and dest[-1].face_up and COLORS[card.suit] != COLORS[dest[-1].suit] and RANKS.index(card.rank) + 1 == RANKS.index(dest[-1].rank))):
+                            self.columns[j].append(self.columns[i].pop())
+                            return
+
+        elif action == 3:
+        # Envoyer carte colonne vers fondation
+            for i, col in enumerate(self.columns):
+                if col and col[-1].face_up:
+                    card = col[-1]
+                    suit = card.suit
+                    foundation = self.foundations[suit]
+                    if (not foundation and card.rank == 'A') or (foundation and RANKS.index(card.rank) == RANKS.index(foundation[-1].rank) + 1):
+                        self.foundations[suit].append(self.columns[i].pop())
+                        self.score += 10
+                        if self.columns[i] and not self.columns[i][-1].face_up:
+                            self.columns[i][-1].face_up = True
+                        return
+
+        self.draw()
+
+    def play_ai_move(self):
+        state = self.get_state()
+        with torch.no_grad():
+            action_scores = self.ai(state)
+        action = torch.argmax(action_scores).item()
+        self.apply_action(action)
 
 if __name__ == "__main__":
     root = tk.Tk()
