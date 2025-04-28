@@ -1,15 +1,27 @@
-# 2024_2025_projet3_gp9_cornille-dallaganol-gavetti-amour
-🎮 Jeu à l'aide d'IA
-Bienvenue dans notre jeu de solitaire.Une partie de solitaire rapide sans prise de tête grâce à l'aide de l'intelligence artificielle ! Parfait pour une pause rapide ou un défi amusant, ce jeu est facile à prendre en mai.... mais difficile à maîtriser !
+# SOLITAIRE RÉSOLU PAR L'IA
 
-🃏 Solitaire
-Un classique du jeu de cartes. Organisez toutes les cartes dans les fondations en respectant les règles traditionnelles. Une IA surveille votre score et votre temps
+## DESCRIPTION 📋
+Ce projet est une implémentation d'un jeu de Solitaire (par exemple : Klondike, FreeCell, ou un solitaire personnalisé) associé à une Intelligence Artificielle capable de le résoudre automatiquement de manière rapide et optimale.
+L'objectif est de développer une IA qui trouve et joue une séquence de coups gagnante en un temps minimal.
 
-🤖 Contre l'IA
-Chaque jeu inclut une IA évolutive, qui s’adapte à vos actions pour rendre la partie plus stimulante à mesure que vous jouez.
+## FONCTIONNALITÉS 📚
+* Implémentation complète du jeu de Solitaire.
+* Système de règles configurable (type de solitaire, nombre de tirages, etc.).
+* Intelligence Artificielle autonome : \
+  -Recherche de solution basée sur des algorithmes\
+  -Optimisation pour minimiser le temps de résolution.
+* Interface console ou graphique pour visualiser les parties (optionnel).
+* Statistiques de performance (temps de résolution, nombre de coups, etc.).
 
+## TECHNOLOGIES UTILISÉES 💻
+* Réseau de neuronnes avec un système de récompense grâce à pytorch.
 
-✅ Fonctionnalités à venir
-🧠 Difficulté dynamique par IA auto-apprenante
+## OBJECTIFS DE PERFORMANCE 🚀
+* Résoudre le jeu du solitaire le plus rapidement possible
 
-🎨 Personnalisation de l’interface
+## AUTEURS DU PROJET 🧑‍🤝‍🧑
+Les personnes ayant contribué au projet sont :
+* **Mathéo** _alias_ [@madzne](https://github.com/madzne)
+* **Victor** _alias_ [@victorcauss1](https://github.com/VictorCornille)
+* **Cyprien Amour** _alias_ [@amourjunior](https://github.com/amourjunior)
+* **Augustin** _alias_ [@AugustinGavetti](https://github.com/augustingavetti)
