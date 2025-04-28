@@ -1,7 +1,6 @@
 # 2024_2025_projet3_gp9_cornille-dallaganol-gavetti-amour
 🎮 Mini Jeux VS IA
-Bienvenue dans Mini Jeux VS IA, une collection évolutive de mini-jeux où vous affrontez une intelligence artificielle ! Parfait pour une pause rapide ou un défi amusant, chaque jeu vous propose une expérience unique, simple à prendre en main… mais difficile à maîtriser !
-
+Bienvenue dans notre jeu de solitaire.Une partie de solitaire rapide sans prise de tête grâce à l'aide de l'intelligence artificielle ! Parfait pour une pause rapide ou un défi amusant, ce jeu est facile à prendre en mai.... mais difficile à maîtriser !
 🃏 Solitaire
 Un classique du jeu de cartes. Organisez toutes les cartes dans les fondations en respectant les règles traditionnelles. Une IA surveille votre score et votre temps
 
