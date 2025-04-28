@@ -22,6 +22,6 @@ L'objectif est de développer une IA qui trouve et joue une séquence de coups g
 ## AUTEURS DU PROJET 🧑‍🤝‍🧑
 Les personnes ayant contribué au projet sont :
 * **Mathéo** _alias_ [@madzne](https://github.com/madzne)
-* **Victor** _alias_ [@victorcauss1](https://github.com/VictorCornille)
+* **Victor** _alias_ [@VictorCornille](https://github.com/VictorCornille)
 * **Cyprien Amour** _alias_ [@amourjunior](https://github.com/amourjunior)
 * **Augustin** _alias_ [@AugustinGavetti](https://github.com/augustingavetti)
