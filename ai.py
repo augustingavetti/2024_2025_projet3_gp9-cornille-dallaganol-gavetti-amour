@@ -5,7 +5,7 @@ import torch.nn as nn
 class SolitaireAI(nn.Module):
     def __init__(self):
         super(SolitaireAI, self).__init__()
-        self.fc1 = nn.Linear(11, 64)
+        self.fc1 = nn.Linear(13, 64)
         self.fc2 = nn.Linear(64, 32)
         self.fc3 = nn.Linear(32, 4)  # 4 actions : tirer, mettre fondation, déplacer colonne, envoyer fondation
 

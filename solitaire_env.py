@@ -47,31 +47,30 @@ class SolitaireEnv:
             state.append(len(self.foundations[suit]))
 
         return torch.FloatTensor(state)
-
-
-
+    
     def apply_action(self, action):
-        reward = 0
+        reward = -0.05  # pénalité par défaut pour encourager l'efficacité
 
-        if action == 0:
+        if action == 0:  # tirer carte
             if self.stock:
                 card = self.stock.pop()
                 self.waste.append((card, True))
-                reward += 0.1
-            else:
+                reward = 0.1
+            elif self.waste:
                 self.stock = [(c, False) for c, _ in self.waste[::-1]]
                 self.waste = []
+                reward = -0.2  # pénalité : rebrassage inutile
 
-        elif action == 1:
+        elif action == 1:  # mettre waste → fondation
             if self.waste:
                 suit, rank = self.waste[-1][0]
                 foundation = self.foundations[suit]
                 if (not foundation and rank == 'A') or (foundation and RANKS.index(rank) == RANKS.index(foundation[-1]) + 1):
                     self.foundations[suit].append(rank)
                     self.waste.pop()
-                    reward += 1
+                    reward = 5
 
-        elif action == 2:
+        elif action == 2:  # déplacer entre colonnes
             for i, col in enumerate(self.columns):
                 if col and col[-1][1]:
                     suit, rank = col[-1][0]
@@ -79,16 +78,16 @@ class SolitaireEnv:
                         if i != j:
                             if not dest and rank == 'K':
                                 self.columns[j].append((col.pop()[0], True))
-                                reward += 0.5
+                                reward = 1
                                 return reward
                             elif dest and dest[-1][1]:
                                 dsuit, drank = dest[-1][0]
                                 if COLORS[suit] != COLORS[dsuit] and RANKS.index(rank) + 1 == RANKS.index(drank):
                                     self.columns[j].append((col.pop()[0], True))
-                                    reward += 0.5
+                                    reward = 1
                                     return reward
 
-        elif action == 3:
+        elif action == 3:  # colonne → fondation
             for i, col in enumerate(self.columns):
                 if col and col[-1][1]:
                     suit, rank = col[-1][0]
@@ -96,8 +95,9 @@ class SolitaireEnv:
                     if (not foundation and rank == 'A') or (foundation and RANKS.index(rank) == RANKS.index(foundation[-1]) + 1):
                         self.foundations[suit].append(rank)
                         col.pop()
-                        reward += 1
+                        reward = 5
                         return reward
 
         self.total_moves += 1
         return reward
+
