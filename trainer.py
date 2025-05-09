@@ -25,10 +25,11 @@ class ReplayBuffer:
         return (
             torch.stack(states),
             torch.tensor(actions),
-            torch.tensor(rewards),
+            torch.tensor(rewards, dtype=torch.float32),
             torch.stack(next_states),
-            torch.tensor(dones)
+            torch.tensor(dones, dtype=torch.float32)
         )
+
 
     def __len__(self):
         return len(self.buffer)
@@ -119,3 +120,23 @@ class Trainer:
             if not file_exists:
                 writer.writerow(["Partie", "Score", "Victoires", "Coups"])
             writer.writerow([game_index + 1, score, int(victory), moves])
+
+    def train_from_replay(self):
+        batch = self.replay_buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = batch
+
+        # Prédictions actuelles
+        q_values = self.model(states)
+
+        # Cibles avec Bellman
+        next_q_values = self.model(next_states).detach()
+        max_next_q_values = torch.max(next_q_values, dim=1)[0]
+
+        targets = q_values.clone()
+        for i in range(self.batch_size):
+            targets[i, actions[i]] = rewards[i] + self.gamma * max_next_q_values[i] * (1 - dones[i])
+
+        loss = self.criterion(q_values, targets)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
