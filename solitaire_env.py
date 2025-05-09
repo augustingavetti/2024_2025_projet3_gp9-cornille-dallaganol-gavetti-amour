@@ -13,40 +13,50 @@ class SolitaireEnv:
         self.reset()
 
     def reset(self):
-        self.deck = [(s, r) for s in SUITS for r in RANKS]
-        random.shuffle(self.deck)
+        full_deck = [(s, r) for s in SUITS for r in RANKS]
+        random.shuffle(full_deck)
+
         self.columns = [[] for _ in range(7)]
         for i in range(7):
             for j in range(i + 1):
-                card = self.deck.pop()
-                self.columns[i].append((card, j == i))  # (carte, face_up)
-        self.stock = self.deck
-        self.deck = []
+                card = full_deck.pop()
+                self.columns[i].append((card, j == i))  # (card, face_up)
+
+        self.stock = full_deck.copy()  # ✅ on garde les cartes restantes
         self.waste = []
         self.foundations = {suit: [] for suit in SUITS}
         self.score = 0
         self.done = False
         self.total_moves = 0
+
     
     def get_state(self):
         state = []
 
-    # On prend uniquement 7 colonnes
-        for col in self.columns[:7]:
+    # 7 colonnes : on encode (cartes visibles, cartes totales)
+        for col in self.columns:
             visibles = sum(1 for c, up in col if up)
+            total = len(col)
             state.append(visibles)
+            state.append(total)
 
-    # Ensuite 1 pour stock s'il y a des cartes
-        state.append(1 if self.stock else 0)
+    # stock : nb de cartes restantes
+        state.append(len(self.stock))
 
-    # 1 pour waste s'il y a des cartes
-        state.append(1 if self.waste else 0)
+    # waste : encode rang + couleur (si visible)
+        if self.waste:
+            suit, rank = self.waste[-1][0]
+            state.append(RANKS.index(rank) / 12)  # entre 0 et 1
+            state.append(['♠', '♥', '♦', '♣'].index(suit) / 3)
+        else:
+            state += [0, 0]
 
-    # Et la taille des 4 fondations
-        for suit in ['♠', '♥', '♦', '♣']:
-            state.append(len(self.foundations[suit]))
+    # fondations : normalisées
+        for suit in SUITS:
+            state.append(len(self.foundations[suit]) / 13)
 
         return torch.FloatTensor(state)
+
     
     def apply_action(self, action):
         reward = -0.05  # pénalité par défaut pour encourager l'efficacité
@@ -57,7 +67,7 @@ class SolitaireEnv:
                 self.waste.append((card, True))
                 reward = 0.1
             elif self.waste:
-                self.stock = [(c, False) for c, _ in self.waste[::-1]]
+                self.stock = [c for c, _ in self.waste[::-1]]
                 self.waste = []
                 reward = -0.2  # pénalité : rebrassage inutile
 

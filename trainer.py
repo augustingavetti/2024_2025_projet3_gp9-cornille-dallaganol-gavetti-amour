@@ -1,12 +1,38 @@
 # trainer.py
 import os
+import csv
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from solitaire_env import SolitaireEnv
 from ai import SolitaireAI
+from collections import deque
+
 
 MODEL_PATH = "model.pth"
+
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen=capacity)
+
+    def add(self, state, action, reward, next_state, done):
+        self.buffer.append((state, action, reward, next_state, done))
+
+    def sample(self, batch_size):
+        batch = random.sample(self.buffer, batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+        return (
+            torch.stack(states),
+            torch.tensor(actions),
+            torch.tensor(rewards),
+            torch.stack(next_states),
+            torch.tensor(dones)
+        )
+
+    def __len__(self):
+        return len(self.buffer)
+
 
 class Trainer:
     def __init__(self, num_games):
@@ -15,6 +41,10 @@ class Trainer:
         self.model = SolitaireAI()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
+        self.replay_buffer = ReplayBuffer(10000)  # taille max du buffer
+        self.batch_size = 64
+        self.gamma = 0.95  # facteur de discount
+
 
         self.stats = {
             "games_played": 0,
@@ -31,29 +61,28 @@ class Trainer:
             self.env.reset()
             done = False
             moves = 0
+            state = self.env.get_state()
 
             while not done:
-                state = self.env.get_state()
-
-                with torch.no_grad():
-                    action_scores = self.model(state)
-                action = torch.argmax(action_scores).item()
+                epsilon = 0.1
+                if random.random() < epsilon:
+                    action = random.randint(0, 3)
+                else:
+                    with torch.no_grad():
+                        action_scores = self.model(state)
+                    action = torch.argmax(action_scores).item()
 
                 reward = self.env.apply_action(action)
+                next_state = self.env.get_state()
+                done = moves > 1000
 
-                # Apprentissage immédiat
-                prediction = self.model(state)
-                target = prediction.clone()
-                target[action] = reward
-
-                loss = self.criterion(prediction, target)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-
+                self.replay_buffer.add(state, action, reward, next_state, done)
+                state = next_state
                 moves += 1
-                if moves > 1000:  # sécurité anti-boucle
-                    done = True
+
+            # Entraînement par batch
+                if len(self.replay_buffer) >= self.batch_size:
+                    self.train_from_replay()
 
             score = sum(len(f) for f in self.env.foundations.values())
             self.stats["games_played"] += 1
@@ -63,11 +92,13 @@ class Trainer:
                 self.stats["best_score"] = score
             if score == 52:
                 self.stats["victories"] += 1
-                reward += 50  # bonus victoire
+                reward += 50
 
+            self.log_game_to_csv(game, score, moves, score == 52)
 
         self.save_model()
         return self.stats
+
 
     def save_model(self):
         torch.save(self.model.state_dict(), MODEL_PATH)
@@ -81,3 +112,10 @@ class Trainer:
         else:
             print("❌ Aucun modèle sauvegardé trouvé.")
 
+    def log_game_to_csv(self, game_index, score, moves, victory):
+        file_exists = os.path.isfile("stats.csv")
+        with open("stats.csv", mode='a', newline='') as file:
+            writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(["Partie", "Score", "Victoires", "Coups"])
+            writer.writerow([game_index + 1, score, int(victory), moves])
