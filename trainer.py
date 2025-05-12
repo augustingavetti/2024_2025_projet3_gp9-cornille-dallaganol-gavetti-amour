@@ -8,9 +8,10 @@ import torch.optim as optim
 from solitaire_env import SolitaireEnv
 from ai import SolitaireAI
 from collections import deque
-
+import pickle
 
 MODEL_PATH = "model.pth"
+BUFFER_PATH = "replay_buffer.pkl"
 
 class ReplayBuffer:
     def __init__(self, capacity):
@@ -43,6 +44,7 @@ class Trainer:
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
         self.replay_buffer = ReplayBuffer(10000)  # taille max du buffer
+        self.load_buffer()
         self.batch_size = 64
         self.gamma = 0.95  # facteur de discount
 
@@ -65,7 +67,7 @@ class Trainer:
             state = self.env.get_state()
 
             while not done:
-                epsilon = 0.1
+                epsilon = max(0.01,1.0-game/10000)
                 if random.random() < epsilon:
                     action = random.randint(0, 3)
                 else:
@@ -96,8 +98,9 @@ class Trainer:
                 reward += 50
 
             self.log_game_to_csv(game, score, moves, score == 52)
-
-        self.save_model()
+            self.save_model()
+            self.save_buffer()
+           
         return self.stats
 
 
@@ -140,3 +143,16 @@ class Trainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+    def save_buffer(self):
+        with open(BUFFER_PATH, "wb") as f:
+            pickle.dump(self.replay_buffer.buffer, f)
+        print(f"🧠 Replay buffer sauvegardé dans {BUFFER_PATH}")
+
+    def load_buffer(self):
+        if os.path.exists(BUFFER_PATH):
+            with open(BUFFER_PATH, "rb") as f:
+                self.replay_buffer.buffer = pickle.load(f)
+            print(f"📥 Replay buffer chargé depuis {BUFFER_PATH}")
+        else:
+            print("❌ Aucun replay buffer trouvé.")

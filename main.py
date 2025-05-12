@@ -5,10 +5,15 @@ import time
 from trainer import Trainer
 import threading
 import subprocess
+import torch
+from ai import SolitaireAI
+from solitaire_env import RANKS, SUITS, COLORS
 
-SUITS = ['♠', '♥', '♦', '♣']
-RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-COLORS = {'♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red'}
+class Card:
+    def __init__(self, suit, rank, face_up=False):
+        self.suit = suit
+        self.rank = rank
+        self.face_up = face_up
 
 class SolitaireGUI:
     def __init__(self, root):
@@ -32,10 +37,12 @@ class SolitaireGUI:
         self.stats_button = tk.Button(self.info_frame, text="Voir les stats", command=self.launch_stats_viewer)
         self.stats_button.grid(row=0, column=2, padx=10)
 
+        self.game_progress_label = tk.Label(self.info_frame, text="Aucune partie en cours")
+        self.game_progress_label.grid(row=1, column=0, columnspan=4, pady=5)
+
         self.games_played = 0
         self.stats_window = None
         self.num_games = 100
-
         self.trainer = Trainer(0)
 
         self.root.bind('<Configure>', self.on_resize)
@@ -47,6 +54,7 @@ class SolitaireGUI:
         self.start_new_game()
 
     def start_new_game(self):
+        self.deck = [Card(s, r) for s in SUITS for r in RANKS]
         random.shuffle(self.deck)
         self.columns = [[] for _ in range(7)]
         for i in range(7):
@@ -55,7 +63,6 @@ class SolitaireGUI:
                 card.face_up = (j == i)
                 self.columns[i].append(card)
         self.stock = self.deck
-        self.deck = []
         self.waste = []
         self.foundations = {suit: [] for suit in SUITS}
         self.draw()
@@ -78,12 +85,58 @@ class SolitaireGUI:
 
         self.input_window.destroy()
         self.open_stats_window()
-        threading.Thread(target=self.run_training, daemon=True).start()
+        threading.Thread(target=self.run_visual_training, daemon=True).start()
 
-    def run_training(self):
-        trainer = Trainer(self.num_games)
-        stats = trainer.train()
-        self.update_stats(stats)
+    def run_visual_training(self):
+        total_score = 0
+        total_moves = 0
+        best_score = 0
+        victories = 0
+
+        for i in range(self.num_games):
+            self.game_progress_label.config(text=f"Partie {i+1} / {self.num_games}")
+            self.root.update_idletasks()
+            score, moves, victory = self.play_one_game_visually()
+            total_score += score
+            total_moves += moves
+            if score > best_score:
+                best_score = score
+            if victory:
+                victories += 1
+
+            self.update_stats({
+                "games_played": i + 1,
+                "total_score": total_score,
+                "total_moves": total_moves,
+                "best_score": best_score,
+                "victories": victories
+            })
+
+    def play_one_game_visually(self):
+        self.start_new_game()
+        model = SolitaireAI()
+        model.load_state_dict(torch.load("model.pth"))
+        model.eval()
+
+        state = self.get_current_state()
+        moves = 0
+        max_moves = 200
+
+        while moves < max_moves:
+            with torch.no_grad():
+                action_scores = model(state)
+                action = torch.argmax(action_scores).item()
+
+            reward = self.apply_action_graphically(action)
+            self.draw()
+            self.root.update()
+            time.sleep(0.25)
+            state = self.get_current_state()
+            moves += 1
+
+        score = sum(len(pile) for pile in self.foundations.values())
+        victory = score == 52
+        return score, moves, victory
 
     def open_stats_window(self):
         self.stats_window = tk.Toplevel(self.root)
@@ -93,11 +146,11 @@ class SolitaireGUI:
 
     def update_stats(self, stats):
         text = (
-            f"Parties jouées : {stats['games_played']}\n"
-            f"Score moyen : {stats['total_score'] / max(1, stats['games_played']):.2f}\n"
-            f"Meilleur score : {stats['best_score']}\n"
-            f"Victoires : {stats['victories']}\n"
-            f"Total coups joués : {stats['total_moves']}\n"
+            f"Parties jouées : {stats['games_played']}"
+            f"Score moyen : {stats['total_score'] / max(1, stats['games_played']):.2f}"
+            f"Meilleur score : {stats['best_score']}"
+            f"Victoires : {stats['victories']}"
+            f"Total coups joués : {stats['total_moves']}"
         )
         if self.stats_window:
             self.stats_text.config(text=text)
@@ -155,11 +208,86 @@ class SolitaireGUI:
     def launch_stats_viewer(self):
         subprocess.Popen(["python", "visualiseur_stats.py"])
 
-class Card:
-    def __init__(self, suit, rank, face_up=False):
-        self.suit = suit
-        self.rank = rank
-        self.face_up = face_up
+    def get_current_state(self):
+        state = []
+
+        for col in self.columns:
+            visibles = sum(1 for c in col if c.face_up)
+            total = len(col)
+            state.append(visibles)
+            state.append(total)
+
+        state.append(len(self.stock))
+
+        if self.waste:
+            card = self.waste[-1]
+            state.append(RANKS.index(card.rank) / 12)
+            state.append(SUITS.index(card.suit) / 3)
+        else:
+            state += [0, 0]
+
+        for suit in SUITS:
+            state.append(len(self.foundations[suit]) / 13)
+
+        return torch.FloatTensor(state)
+
+    def apply_action_graphically(self, action):
+        reward = -0.1
+
+        if action == 0:
+            if self.stock:
+                self.waste.append(self.stock.pop())
+                reward = 0.1
+            elif self.waste:
+                self.stock = list(reversed(self.waste))
+                self.waste = []
+                reward = -0.5
+            else:
+                reward = -1.0
+
+        elif action == 1:
+            if self.waste:
+                card = self.waste[-1]
+                pile = self.foundations[card.suit]
+                if (not pile and card.rank == 'A') or (pile and RANKS.index(card.rank) == RANKS.index(pile[-1].rank) + 1):
+                    self.foundations[card.suit].append(card)
+                    self.waste.pop()
+                    reward = 5
+                else:
+                    reward = -0.5
+            else:
+                reward = -1.0
+
+        elif action == 2:
+            for i, col in enumerate(self.columns):
+                if col and col[-1].face_up:
+                    card = col[-1]
+                    for j, dest in enumerate(self.columns):
+                        if i != j:
+                            if not dest and card.rank == 'K':
+                                self.columns[j].append(col.pop())
+                                reward = 1
+                                return reward
+                            elif dest and dest[-1].face_up:
+                                top = dest[-1]
+                                if COLORS[card.suit] != COLORS[top.suit] and RANKS.index(card.rank) + 1 == RANKS.index(top.rank):
+                                    self.columns[j].append(col.pop())
+                                    reward = 1
+                                    return reward
+            reward = -0.5
+
+        elif action == 3:
+            for col in self.columns:
+                if col and col[-1].face_up:
+                    card = col[-1]
+                    pile = self.foundations[card.suit]
+                    if (not pile and card.rank == 'A') or (pile and RANKS.index(card.rank) == RANKS.index(pile[-1].rank) + 1):
+                        self.foundations[card.suit].append(col.pop())
+                        reward = 5
+                        return reward
+            reward = -0.5
+
+        return reward
 
 if __name__ == "__main__":
     root = tk.Tk()

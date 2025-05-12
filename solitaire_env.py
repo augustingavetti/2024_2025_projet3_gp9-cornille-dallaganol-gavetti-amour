@@ -57,9 +57,8 @@ class SolitaireEnv:
 
         return torch.FloatTensor(state)
 
-    
     def apply_action(self, action):
-        reward = -0.05  # pénalité par défaut pour encourager l'efficacité
+        reward = -0.1  # pénalité de base plus forte pour éviter les clics inutiles
 
         if action == 0:  # tirer carte
             if self.stock:
@@ -69,7 +68,9 @@ class SolitaireEnv:
             elif self.waste:
                 self.stock = [c for c, _ in self.waste[::-1]]
                 self.waste = []
-                reward = -0.2  # pénalité : rebrassage inutile
+                reward = -0.5  # grosse pénalité pour rebrassage inutile
+            else:
+                reward = -1.0  # tirer alors que rien n'est possible
 
         elif action == 1:  # mettre waste → fondation
             if self.waste:
@@ -79,8 +80,13 @@ class SolitaireEnv:
                     self.foundations[suit].append(rank)
                     self.waste.pop()
                     reward = 5
+                else:
+                    reward = -0.5  # poser une carte invalide
+            else:
+                reward = -1.0  # rien à poser
 
         elif action == 2:  # déplacer entre colonnes
+            moved = False
             for i, col in enumerate(self.columns):
                 if col and col[-1][1]:
                     suit, rank = col[-1][0]
@@ -96,8 +102,10 @@ class SolitaireEnv:
                                     self.columns[j].append((col.pop()[0], True))
                                     reward = 1
                                     return reward
+            reward = -0.5  # aucun mouvement possible
 
         elif action == 3:  # colonne → fondation
+            moved = False
             for i, col in enumerate(self.columns):
                 if col and col[-1][1]:
                     suit, rank = col[-1][0]
@@ -107,7 +115,7 @@ class SolitaireEnv:
                         col.pop()
                         reward = 5
                         return reward
+            reward = -0.5  # tentative échouée
 
         self.total_moves += 1
         return reward
-
