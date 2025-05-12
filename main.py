@@ -1,8 +1,10 @@
+
 import tkinter as tk
 import random
 import time
 from trainer import Trainer
 import threading
+import subprocess
 
 SUITS = ['♠', '♥', '♦', '♣']
 RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -23,14 +25,18 @@ class SolitaireGUI:
 
         self.start_button = tk.Button(self.info_frame, text="Lancer Auto-IA", command=self.ask_num_games)
         self.start_button.grid(row=0, column=0, padx=10)
+
         self.load_button = tk.Button(self.info_frame, text="Charger IA", command=self.load_model_manually)
         self.load_button.grid(row=0, column=1, padx=10)
+
+        self.stats_button = tk.Button(self.info_frame, text="Voir les stats", command=self.launch_stats_viewer)
+        self.stats_button.grid(row=0, column=2, padx=10)
 
         self.games_played = 0
         self.stats_window = None
         self.num_games = 100
 
-        self.trainer = Trainer(0)  # 0 partie = on ne lance pas d'entraînement
+        self.trainer = Trainer(0)
 
         self.root.bind('<Configure>', self.on_resize)
         self.deck = [Card(s, r) for s in SUITS for r in RANKS]
@@ -136,7 +142,7 @@ class SolitaireGUI:
             self.canvas.create_rectangle(x, y, x + 50, y + 70, fill="white")
             color = COLORS[card.suit]
             self.canvas.create_text(x + 25, y + 35, text=f"{card.rank}{card.suit}", fill=color, font=('Arial', 14, 'bold'))
-    
+
     def load_model_manually(self):
         self.trainer.load_model()
         popup = tk.Toplevel(self.root)
@@ -145,6 +151,9 @@ class SolitaireGUI:
         message.pack(pady=10)
         close_btn = tk.Button(popup, text="Fermer", command=popup.destroy)
         close_btn.pack(pady=5)
+
+    def launch_stats_viewer(self):
+        subprocess.Popen(["python", "visualiseur_stats.py"])
 
 class Card:
     def __init__(self, suit, rank, face_up=False):
