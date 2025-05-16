@@ -5,8 +5,8 @@ import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from solitaire_env import SolitaireEnv
-from ai import SolitaireAI
+from game.solitaire_env import SolitaireEnv
+from ai.model import SolitaireAI
 from collections import deque
 import pickle
 

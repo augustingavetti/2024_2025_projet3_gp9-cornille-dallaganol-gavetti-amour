@@ -1,19 +1,14 @@
-
 import tkinter as tk
 import random
 import time
-from trainer import Trainer
+import torch
 import threading
 import subprocess
-import torch
-from ai import SolitaireAI
-from solitaire_env import RANKS, SUITS, COLORS
+from ai.trainer import Trainer
+from ai.model import SolitaireAI
+from game.solitaire_env import RANKS, SUITS, COLORS
+from game.card import Card
 
-class Card:
-    def __init__(self, suit, rank, face_up=False):
-        self.suit = suit
-        self.rank = rank
-        self.face_up = face_up
 
 class SolitaireGUI:
     def __init__(self, root):
@@ -70,15 +65,21 @@ class SolitaireGUI:
     def ask_num_games(self):
         self.input_window = tk.Toplevel(self.root)
         self.input_window.title("Nombre de parties")
-    
+
         label = tk.Label(self.input_window, text="Nombre de parties :")
         label.pack()
-    
+
         self.input_entry = tk.Entry(self.input_window)
         self.input_entry.pack()
 
-        validate = tk.Button(
-            self.input_window, text="Valider", command=self.start_auto_play)
+        mode_label = tk.Label(self.input_window, text="Mode d'entraînement :")
+        mode_label.pack()
+
+        self.mode_var = tk.StringVar(value="visuel")
+        tk.Radiobutton(self.input_window, text="Visuel (lent)", variable=self.mode_var, value="visuel").pack()
+        tk.Radiobutton(self.input_window, text="Rapide (sans visuel)", variable=self.mode_var, value="rapide").pack()
+
+        validate = tk.Button(self.input_window, text="Valider", command=self.start_auto_play)
         validate.pack()
 
     def start_auto_play(self):
@@ -90,8 +91,11 @@ class SolitaireGUI:
         self.input_window.destroy()
         self.open_stats_window()
 
-        self.trainer.num_games = self.num_games
-        threading.Thread(target=self.run_non_visual_training, daemon=True).start()
+        if self.mode_var.get() == "visuel":
+            threading.Thread(target=self.run_non_visual_training, daemon=True).start()
+        else:
+            self.run_fast_training()
+
     
     def run_training_thread(self):
         stats = self.trainer.train()
@@ -143,18 +147,10 @@ class SolitaireGUI:
 
             self.trainer.log_game_to_csv(i, score, moves, score == 52)
 
+
             if len(self.trainer.replay_buffer) >= self.trainer.batch_size:
                 self.trainer.train_from_replay()
-
-            # ➤ Mise à jour en direct des stats visibles
-            self.update_stats({
-                "games_played": i + 1,
-                "total_score": total_score,
-                "total_moves": total_moves,
-                "best_score": best_score,
-                "victories": victories
-            })
-
+        
         # Sauvegardes finales
         self.trainer.save_model()
         self.trainer.save_buffer()
@@ -341,6 +337,68 @@ class SolitaireGUI:
             reward = -0.5
 
         return reward
+    
+    def run_fast_training(self):
+        self.trainer.num_games = self.num_games
+        threading.Thread(target=self._fast_training_loop_with_stats, daemon=True).start()
+
+    def _fast_training_loop_with_stats(self):
+        total_score = 0
+        total_moves = 0
+        best_score = 0
+        victories = 0
+
+        for i in range(self.num_games):
+            self.trainer.env.reset()
+            done = False
+            moves = 0
+            state = self.trainer.env.get_state()
+
+            while not done:
+                epsilon = max(0.01, 1.0 - i / 10000)
+                if random.random() < epsilon:
+                    action = random.randint(0, 3)
+                else:
+                    with torch.no_grad():
+                        action_scores = self.trainer.model(state)
+                    action = torch.argmax(action_scores).item()
+
+                reward = self.trainer.env.apply_action(action)
+                next_state = self.trainer.env.get_state()
+                done = moves > 500
+
+                self.trainer.replay_buffer.add(state, action, reward, next_state, done)
+                state = next_state
+                moves += 1
+
+                current_score = sum(len(f) for f in self.trainer.env.foundations.values())
+                self.update_stats({
+                    "games_played": i + 1,
+                    "total_score": total_score + current_score,
+                    "total_moves": total_moves + moves,
+                    "best_score": max(best_score, current_score),
+                    "victories": victories + (1 if current_score == 52 else 0)
+                })
+
+            # apprentissage
+            if len(self.trainer.replay_buffer) >= self.trainer.batch_size:
+                self.trainer.train_from_replay()
+
+            score = sum(len(f) for f in self.trainer.env.foundations.values())
+            total_score += score
+            total_moves += moves
+            if score > best_score:
+                best_score = score
+            if score == 52:
+                victories += 1
+
+            self.trainer.log_game_to_csv(i, score, moves, score == 52)
+
+        self.trainer.save_model()
+        self.trainer.save_buffer()
+
+    from tkinter import messagebox
+    messagebox.showinfo("Entraînement rapide terminé", "✅ Modèle, buffer et stats sauvegardés.")
 
 if __name__ == "__main__":
     root = tk.Tk()

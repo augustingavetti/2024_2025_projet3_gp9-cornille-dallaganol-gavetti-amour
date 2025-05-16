@@ -1,6 +1,6 @@
 # solitaire_env.py
 from copy import deepcopy
-from ai import SolitaireAI
+from ai.model import SolitaireAI
 import torch
 import random
 
