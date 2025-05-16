@@ -39,7 +39,7 @@ class SolitaireGUI:
 
         self.game_progress_label = tk.Label(self.info_frame, text="Aucune partie en cours")
         self.game_progress_label.grid(row=1, column=0, columnspan=4, pady=5)
-
+        
         self.games_played = 0
         self.stats_window = None
         self.num_games = 100
@@ -70,11 +70,15 @@ class SolitaireGUI:
     def ask_num_games(self):
         self.input_window = tk.Toplevel(self.root)
         self.input_window.title("Nombre de parties")
+    
         label = tk.Label(self.input_window, text="Nombre de parties :")
         label.pack()
+    
         self.input_entry = tk.Entry(self.input_window)
         self.input_entry.pack()
-        validate = tk.Button(self.input_window, text="Valider", command=self.start_auto_play)
+
+        validate = tk.Button(
+            self.input_window, text="Valider", command=self.start_auto_play)
         validate.pack()
 
     def start_auto_play(self):
@@ -85,25 +89,64 @@ class SolitaireGUI:
 
         self.input_window.destroy()
         self.open_stats_window()
-        threading.Thread(target=self.run_visual_training, daemon=True).start()
 
-    def run_visual_training(self):
+        self.trainer.num_games = self.num_games
+        threading.Thread(target=self.run_non_visual_training, daemon=True).start()
+    
+    def run_training_thread(self):
+        stats = self.trainer.train()
+        self.update_stats(stats)
+
+    def run_non_visual_training(self):
+        VISUAL_SPEED = 0.00  # ➤ Vitesse d'affichage (0.00 = instantané, 0.05 = lent)
+        MAX_MOVES = 300      # ➤ Nombre de coups max autorisés par partie
+
         total_score = 0
         total_moves = 0
         best_score = 0
         victories = 0
 
+        self.trainer.model.eval()
+
         for i in range(self.num_games):
             self.game_progress_label.config(text=f"Partie {i+1} / {self.num_games}")
             self.root.update_idletasks()
-            score, moves, victory = self.play_one_game_visually()
+
+            self.start_new_game()
+            state = self.get_current_state()
+            moves = 0
+
+            while moves < MAX_MOVES:
+                with torch.no_grad():
+                    action_scores = self.trainer.model(state)
+                    action = torch.argmax(action_scores).item()
+
+                reward = self.apply_action_graphically(action)
+                self.draw()
+                self.root.update()
+                time.sleep(VISUAL_SPEED)
+
+                next_state = self.get_current_state()
+                done = moves > MAX_MOVES
+
+                self.trainer.replay_buffer.add(state, action, reward, next_state, done)
+                state = next_state
+                moves += 1
+
+            score = sum(len(pile) for pile in self.foundations.values())
             total_score += score
             total_moves += moves
             if score > best_score:
                 best_score = score
-            if victory:
+            if score == 52:
                 victories += 1
 
+            self.trainer.log_game_to_csv(i, score, moves, score == 52)
+
+            if len(self.trainer.replay_buffer) >= self.trainer.batch_size:
+                self.trainer.train_from_replay()
+
+            # ➤ Mise à jour en direct des stats visibles
             self.update_stats({
                 "games_played": i + 1,
                 "total_score": total_score,
@@ -111,6 +154,16 @@ class SolitaireGUI:
                 "best_score": best_score,
                 "victories": victories
             })
+
+        # Sauvegardes finales
+        self.trainer.save_model()
+        self.trainer.save_buffer()
+
+        # Message de fin
+        from tkinter import messagebox
+        messagebox.showinfo("Entraînement terminé", "✅ Modèle, replay buffer et stats sauvegardés !")
+
+
 
     def play_one_game_visually(self):
         self.start_new_game()
