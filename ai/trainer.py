@@ -10,8 +10,13 @@ from ai.model import SolitaireAI
 from collections import deque
 import pickle
 
-MODEL_PATH = "model.pth"
-BUFFER_PATH = "replay_buffer.pkl"
+STATS_DIR = "stats"
+STATS_PATH = os.path.join(STATS_DIR, "stats.csv")
+
+SAVE_DIR = "saved"
+BUFFER_PATH = os.path.join(SAVE_DIR, "replay_buffer.pkl")
+MODEL_PATH = os.path.join(SAVE_DIR, "model.pth")
+
 
 class ReplayBuffer:
     def __init__(self, capacity):
@@ -119,12 +124,15 @@ class Trainer:
             print("❌ Aucun modèle sauvegardé trouvé.")
 
     def log_game_to_csv(self, game_index, score, moves, victory):
-        file_exists = os.path.isfile("stats.csv")
-        with open("stats.csv", mode='a', newline='') as file:
+        os.makedirs(STATS_DIR, exist_ok=True)  # Crée le dossier s'il n'existe pas
+        file_exists = os.path.isfile(STATS_PATH)
+        
+        with open(STATS_PATH, mode='a', newline='') as file:
             writer = csv.writer(file)
             if not file_exists:
                 writer.writerow(["Partie", "Score", "Victoires", "Coups"])
             writer.writerow([game_index + 1, score, int(victory), moves])
+
 
     def train_from_replay(self):
         batch = self.replay_buffer.sample(self.batch_size)

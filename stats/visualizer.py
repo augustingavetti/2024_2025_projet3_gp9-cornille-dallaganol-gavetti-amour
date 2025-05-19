@@ -18,7 +18,7 @@ def charger_donnees_csv(fichier):
 
 def afficher_graphiques():
     try:
-        parties, scores, victoires, coups = charger_donnees_csv("stats.csv")
+        parties, scores, victoires, coups = charger_donnees_csv("stats/stats.csv")
 
         plt.figure(figsize=(10, 6))
         plt.subplot(2, 1, 1)
