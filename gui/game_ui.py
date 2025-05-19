@@ -247,9 +247,14 @@ class SolitaireGUI:
 
     def load_model_manually(self):
         self.trainer.load_model()
+        self.trainer.load_buffer()
+
         popup = tk.Toplevel(self.root)
-        popup.title("Modèle IA")
-        message = tk.Label(popup, text="Modèle IA chargé avec succès !" if self.trainer.model else "Échec du chargement.")
+        popup.title("Modèle IA et Buffer")
+        message = tk.Label(
+            popup,
+            text="✅ Modèle et replay buffer chargés avec succès !" if self.trainer.model else "❌ Échec du chargement."
+        )
         message.pack(pady=10)
         close_btn = tk.Button(popup, text="Fermer", command=popup.destroy)
         close_btn.pack(pady=5)

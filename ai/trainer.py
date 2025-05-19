@@ -67,7 +67,7 @@ class Trainer:
             state = self.env.get_state()
 
             while not done:
-                epsilon = max(0.01,1.0-game/10000)
+                epsilon = max(0.05, 0.995 ** game)
                 if random.random() < epsilon:
                     action = random.randint(0, 3)
                 else:
@@ -77,7 +77,7 @@ class Trainer:
 
                 reward = self.env.apply_action(action)
                 next_state = self.env.get_state()
-                done = moves > 1000
+                done = moves > 300
 
                 self.replay_buffer.add(state, action, reward, next_state, done)
                 state = next_state
@@ -96,6 +96,8 @@ class Trainer:
             if score == 52:
                 self.stats["victories"] += 1
                 reward += 50
+            elif score < 5:
+                reward -= 10  # ❌ Partie trop nulle
 
             self.log_game_to_csv(game, score, moves, score == 52)
             self.save_model()

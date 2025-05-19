@@ -58,19 +58,19 @@ class SolitaireEnv:
         return torch.FloatTensor(state)
 
     def apply_action(self, action):
-        reward = -0.1  # pénalité de base plus forte pour éviter les clics inutiles
+        reward = -0.1  # pénalité par défaut
 
         if action == 0:  # tirer carte
             if self.stock:
                 card = self.stock.pop()
                 self.waste.append((card, True))
-                reward = 0.1
+                reward = 0.2  # léger bonus : tirer une carte c’est utile
             elif self.waste:
                 self.stock = [c for c, _ in self.waste[::-1]]
                 self.waste = []
-                reward = -0.5  # grosse pénalité pour rebrassage inutile
+                reward = -0.8  # rebrasser inutile = pénalité plus forte
             else:
-                reward = -1.0  # tirer alors que rien n'est possible
+                reward = -1.0
 
         elif action == 1:  # mettre waste → fondation
             if self.waste:
@@ -79,43 +79,50 @@ class SolitaireEnv:
                 if (not foundation and rank == 'A') or (foundation and RANKS.index(rank) == RANKS.index(foundation[-1]) + 1):
                     self.foundations[suit].append(rank)
                     self.waste.pop()
-                    reward = 5
+                    reward = 5  # fondation = gros bonus
                 else:
-                    reward = -0.5  # poser une carte invalide
+                    reward = -0.5
             else:
-                reward = -1.0  # rien à poser
+                reward = -1.0
 
         elif action == 2:  # déplacer entre colonnes
-            moved = False
             for i, col in enumerate(self.columns):
-                if col and col[-1][1]:
-                    suit, rank = col[-1][0]
+                if col and col[-1][1]:  # top carte visible
+                    card = col[-1][0]
+                    if not isinstance(card, tuple) or len(card) != 2:
+                        return -1.0
+                    suit, rank = card
                     for j, dest in enumerate(self.columns):
                         if i != j:
                             if not dest and rank == 'K':
-                                self.columns[j].append((col.pop()[0], True))
+                                col.pop()
+                                self.columns[j].append(((suit, rank), True))
                                 reward = 1
                                 return reward
                             elif dest and dest[-1][1]:
-                                dsuit, drank = dest[-1][0]
+                                dcard = dest[-1][0]
+                                if not isinstance(dcard, tuple) or len(dcard) != 2:
+                                    return -1.0
+                                dsuit, drank = dcard
                                 if COLORS[suit] != COLORS[dsuit] and RANKS.index(rank) + 1 == RANKS.index(drank):
-                                    self.columns[j].append((col.pop()[0], True))
+                                    col.pop()
+                                    self.columns[j].append(((suit, rank), True))
                                     reward = 1
                                     return reward
-            reward = -0.5  # aucun mouvement possible
+            reward = -0.5
+
 
         elif action == 3:  # colonne → fondation
-            moved = False
             for i, col in enumerate(self.columns):
                 if col and col[-1][1]:
                     suit, rank = col[-1][0]
                     foundation = self.foundations[suit]
                     if (not foundation and rank == 'A') or (foundation and RANKS.index(rank) == RANKS.index(foundation[-1]) + 1):
-                        self.foundations[suit].append(rank)
                         col.pop()
+                        self.foundations[suit].append(rank)
                         reward = 5
                         return reward
-            reward = -0.5  # tentative échouée
+            reward = -0.5
 
         self.total_moves += 1
         return reward
