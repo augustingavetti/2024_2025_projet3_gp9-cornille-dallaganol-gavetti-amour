@@ -260,7 +260,7 @@ class SolitaireGUI:
         close_btn.pack(pady=5)
 
     def launch_stats_viewer(self):
-        subprocess.Popen(["python", "visualiseur_stats.py"])
+        subprocess.Popen(["python", "stats/visualiseur_stats.py"])
 
     def get_current_state(self):
         state = []
@@ -401,9 +401,6 @@ class SolitaireGUI:
 
         self.trainer.save_model()
         self.trainer.save_buffer()
-
-    from tkinter import messagebox
-    messagebox.showinfo("Entraînement rapide terminé", "✅ Modèle, buffer et stats sauvegardés.")
 
 if __name__ == "__main__":
     root = tk.Tk()
