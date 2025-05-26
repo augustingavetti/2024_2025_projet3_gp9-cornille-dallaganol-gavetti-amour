@@ -8,6 +8,9 @@ from ai.trainer import Trainer
 from ai.model import SolitaireAI
 from game.solitaire_env import RANKS, SUITS, COLORS
 from game.card import Card
+import subprocess
+from tkinter import messagebox
+
 
 
 class SolitaireGUI:
@@ -35,6 +38,9 @@ class SolitaireGUI:
         self.game_progress_label = tk.Label(self.info_frame, text="Aucune partie en cours")
         self.game_progress_label.grid(row=1, column=0, columnspan=4, pady=5)
         
+        self.finisher_button = tk.Button(self.info_frame, text="Mode Fin de Partie (5 coups)", command=self.run_finisher_training)
+        self.finisher_button.grid(row=0, column=3, padx=10)
+
         self.games_played = 0
         self.stats_window = None
         self.num_games = 100
@@ -401,6 +407,14 @@ class SolitaireGUI:
 
         self.trainer.save_model()
         self.trainer.save_buffer()
+
+    def run_finisher_training(self):
+        try:
+            subprocess.run(["python", "finisher_trainer.py"], check=True)
+            messagebox.showinfo("Fin d'entraînement", "✅ Entraînement sur fins de partie terminé !")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Une erreur est survenue : {e}")
+    
 
 if __name__ == "__main__":
     root = tk.Tk()
