@@ -5,10 +5,14 @@ from ai.model import SolitaireAI
 from game.solitaire_env import SolitaireEnv
 from ai.trainer import ReplayBuffer
 import pickle
+import csv
 
-SAVE_DIR = "saved"
-MODEL_PATH = os.path.join(SAVE_DIR, "model.pth")
-BUFFER_PATH = os.path.join(SAVE_DIR, "replay_buffer.pkl")
+SAVE_DIR = "saved/finisher"
+MODEL_PATH = os.path.join(SAVE_DIR, "model_fin.pth")
+BUFFER_PATH = os.path.join(SAVE_DIR, "replay_buffer_fin.pkl")
+STATS_PATH = os.path.join(SAVE_DIR, "fin_stats.csv")
+
+
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -80,6 +84,12 @@ def train_on_final_moves(num_episodes=200):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+    score = sum(len(f) for f in env.foundations.values())
+    with open(STATS_PATH, mode='a', newline='') as file:
+        writer= csv.writer(file)
+        if episode == 0 and not os.path.exists(STATS_PATH):
+            writer.writerow(["Episode", "Score", "Coups", "Victoire"])
+        writer.writerow([episode + 1, score, moves, int(score == 52)])
 
         print(f"🎯 Épisode {episode+1}/{num_episodes} — Moves: {moves}")
 
